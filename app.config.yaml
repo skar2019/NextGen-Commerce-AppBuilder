@@ -1,0 +1,27 @@
+application:
+  actions: actions
+  web: web-src
+  runtimeManifest:
+    packages:
+      ERP-Order-Sync:
+        license: Apache-2.0
+        actions:
+          erp-order-sync:
+            function: actions/erp-order-sync/index.js
+            web: 'yes'
+            runtime: nodejs:18
+            inputs:
+              LOG_LEVEL: debug
+            annotations:
+              require-adobe-auth: false
+              final: true
+          erp-order-sync-retry:
+            function: actions/erp-order-sync-retry/index.js
+            web: 'yes'
+            runtime: nodejs:18
+            inputs:
+              LOG_LEVEL: debug
+              apiKey: $SERVICE_API_KEY
+            annotations:
+              require-adobe-auth: false
+              final: true
