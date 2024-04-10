@@ -25,3 +25,12 @@ application:
             annotations:
               require-adobe-auth: false
               final: true
+        triggers:
+          everyMin:
+            feed: /whisk.system/alarms/interval
+            inputs:
+              minutes: 1
+        rules:
+          everyMinRule:
+            trigger: everyMin
+            action: erp-order-sync-retry
