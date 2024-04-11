@@ -9,9 +9,8 @@ var request = require('request');
 async function main (params) {
   // create a Logger
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
-
   try {
-    syncCommerceOrdersToERP();
+    syncCommerceOrdersToERP(params);
   } catch (error) {
     // log any server errors
     logger.error(error)
@@ -23,17 +22,18 @@ async function main (params) {
 /**
  * Synchronization Order to ERP
  */
-function syncCommerceOrdersToERP() {
+function syncCommerceOrdersToERP(params) {
   var options = {
     'method': 'GET',
-    'url': 'https://dd45-2401-4900-1cba-a19b-9103-af55-4e08-8c4d.ngrok-free.app/rest/all/V1/orders?'+
-      'searchCriteria[filter_groups][0][filters][0][field]=status&'+
-      '\nsearchCriteria[filter_groups][0][filters][0][condition_type]=eq'+
-      '&searchCriteria[filter_groups][0][filters][0][value]=processing',
+    'url': params.COMMERCE_API_ENDPOINT +'/rest/all/V1/orders?'+
+      'searchCriteria[filter_groups][0][filters][0][field]=erp_sync_status&'+
+      '\nsearchCriteria[filter_groups][0][filters][0][condition_type]=in'+
+      '&searchCriteria[filter_groups][0][filters][0][value]=0,3',
     'headers': {
-      'Authorization': 'Bearer aeazv3wei3qm3g6fi3vvwq7rprwlhh39'
+      'Authorization': 'Bearer ' + params.COMMERCE_BEARAR_TOKEN
     }
   };
+
   request(options, function (error, response) {
     if (error)  {
       throw new Error(error);
@@ -44,19 +44,83 @@ function syncCommerceOrdersToERP() {
        * Iterate Each Commerce Order,Send Each Order to ERP
        */
       commerceOrders.forEach(commerceOrder => {
-        //sendNotificationToSlack(commerceOrder);
+        if (checkERPSyncStatus(commerceOrder, params)) {
+          sendCommerceOrderToERP(commerceOrder, params)
+        }
       });
     }
   });
 }
 
+function checkERPSyncStatus(commerceOrder, params){
+  return true;
+}
+
+/**
+ * Send Order Data to ERP
+ * @param commerceOrder
+ */
+function sendCommerceOrderToERP(commerceOrder, params) {
+  var commerOrderData = JSON.stringify(commerceOrder);
+  var options = {
+    method: 'POST',
+    url: params.ERP_API_ENDPOINT + '/process-order.php',
+    headers: { 'Content-type': 'application/json' },
+    body: commerOrderData
+  };
+
+  request(options, function (error, response) {
+    var erpResponse = response.body;
+    if (error) {
+      console.log("ERROR: Fail to post to ERP");
+      console.log(erpResponse);
+    } else {
+      console.log ("SUCCESS: Posted to ERP");
+      console.log(erpResponse);
+
+      updateCommerceOrderSyncStatus(erpResponse,params);
+      sendNotificationToSlack(erpResponse,params);
+    }
+  });
+}
+
+/**
+ * Update ERP Order Sync Status to Commerce
+ */
+function updateCommerceOrderSyncStatus(erpResponse, params) {
+
+  var erpResponseJson = JSON.parse(erpResponse);
+
+  var request = require('request');
+  var options = {
+    'method': 'POST',
+    'url': params.COMMERCE_API_ENDPOINT + '/rest/V1/orders',
+    'headers': {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + params.COMMERCE_BEARAR_TOKEN
+    },
+    body: JSON.stringify({
+      "entity": {
+        "entity_id": erpResponseJson.commerce_order_id,
+        "erp_sync_status": erpResponseJson.sync_status
+      }
+    })
+
+  };
+  request(options, function (error, response) {
+    if (error) throw new Error(error);
+    console.log(response.body);
+  });
+
+}
+
 /**
  * Update to Slack Channel
  */
-function sendNotificationToSlack(erpResponse) {
+function sendNotificationToSlack(erpResponse, params) {
 
-  var slackChannel = "poc";
-  var slackMessage = "*ERP Order Synchronization Details!* \n" + '`' + JSON.stringify(erpResponse) + '`';
+  var slackChannel = params.SLACK_CHANNEL_NAME;
+  var slackMessage = "*ERP Order Synchronization Details !* \n" + '`' + JSON.stringify(erpResponse) + '`';
 
   var payload = {
     "channel": slackChannel,
@@ -67,7 +131,7 @@ function sendNotificationToSlack(erpResponse) {
 
   var options = {
     method: 'POST',
-    url: "https://hooks.slack.com/services/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",
+    url: params.SLACK_POST_URL,
     headers: { 'Content-type': 'application/json' },
     body: JSON.stringify(payload)
   };
