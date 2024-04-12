@@ -36,15 +36,18 @@ function syncCommerceOrdersToERP(params) {
 
   request(options, function (error, response) {
     if (error)  {
+      sendNotificationToSlackGeneric('Not able to fetch order data from commerce', params);
       throw new Error(error);
     } else {
       var commerceResponse = JSON.parse(response.body);
       var commerceOrders = commerceResponse.items;
+      sendNotificationToSlackGeneric('Order Data fetch from Commerce', params);
       /**
        * Iterate Each Commerce Order,Send Each Order to ERP
        */
       commerceOrders.forEach(commerceOrder => {
         if (checkERPSyncStatus(commerceOrder, params)) {
+          sendNotificationToSlackGeneric('Iterate Order Data and send to ERP', params);
           sendCommerceOrderToERP(commerceOrder, params)
         }
       });
@@ -71,15 +74,20 @@ function sendCommerceOrderToERP(commerceOrder, params) {
 
   request(options, function (error, response) {
     var erpResponse = response.body;
+
     if (error) {
+      sendNotificationToSlackGeneric('Not able to send order to ERP', params);
       console.log("ERROR: Fail to post to ERP");
       console.log(erpResponse);
     } else {
-      console.log ("SUCCESS: Posted to ERP");
-      console.log(erpResponse);
+      var erpResponseJson = JSON.parse(erpResponse);
 
-      updateCommerceOrderSyncStatus(erpResponse,params);
-      sendNotificationToSlack(erpResponse,params);
+      sendNotificationToSlackGeneric('Order Data send to ERP', params);
+      console.log ("SUCCESS: Posted to ERP");
+      console.log(erpResponseJson);
+
+      updateCommerceOrderSyncStatus(erpResponseJson,params);
+      sendNotificationToSlack(erpResponseJson,params);
     }
   });
 }
@@ -87,29 +95,35 @@ function sendCommerceOrderToERP(commerceOrder, params) {
 /**
  * Update ERP Order Sync Status to Commerce
  */
-function updateCommerceOrderSyncStatus(erpResponse, params) {
-
-  var erpResponseJson = JSON.parse(erpResponse);
+function updateCommerceOrderSyncStatus(erpResponseJson, params) {
 
   var request = require('request');
   var options = {
     'method': 'POST',
-    'url': params.COMMERCE_API_ENDPOINT + '/rest/V1/orders',
+    'url': params.COMMERCE_API_ENDPOINT + '/rest/async/bulk/V1/orders',
     'headers': {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + params.COMMERCE_BEARAR_TOKEN
     },
-    body: JSON.stringify({
+    body: JSON.stringify([{
       "entity": {
         "entity_id": erpResponseJson.commerce_order_id,
-        "erp_sync_status": erpResponseJson.sync_status
+        "extension_attributes": {
+          "erp_sync_status": erpResponseJson.sync_status,
+          "erp_order_id" : erpResponseJson.erp_order_id
+        }
       }
-    })
+    }])
 
   };
   request(options, function (error, response) {
-    if (error) throw new Error(error);
-    console.log(response.body);
+    if (error) {
+      sendNotificationToSlackGeneric('Not able to update ERP sync Status data to Commerce', params);
+      throw new Error(error);
+    } else {
+      sendNotificationToSlackGeneric('Able to update ERP sync Status to Commerce', params);
+    }
+   //console.log(response.body);
   });
 
 }
@@ -117,10 +131,17 @@ function updateCommerceOrderSyncStatus(erpResponse, params) {
 /**
  * Update to Slack Channel
  */
-function sendNotificationToSlack(erpResponse, params) {
+function sendNotificationToSlack(erpResponseJson, params) {
 
   var slackChannel = params.SLACK_CHANNEL_NAME;
-  var slackMessage = "*ERP Order Synchronization Details !* \n" + '`' + JSON.stringify(erpResponse) + '`';
+  var erpSyncMessage= 'Order Sync with ERP is Successful';
+
+  if (erpResponseJson.sync_status == '0') {
+    erpSyncMessage = 'Order Sync with ERP is Failed';
+  }
+
+  var slackMessage = "*ERP Order Synchronization Details !* \n" + erpSyncMessage + '\n' +
+    '`' + JSON.stringify(erpResponseJson) + '`';
 
   var payload = {
     "channel": slackChannel,
@@ -143,6 +164,36 @@ function sendNotificationToSlack(erpResponse, params) {
       console.log ("SUCCESS: posted to slack");
     }
   });
+}
+
+function sendNotificationToSlackGeneric(message, params) {
+
+  if (params.ENLABLE_DEBUG == 1) {
+    var slackChannel = params.SLACK_DEBUG_CHANNEL_NAME;
+    var slackMessage = '*' + message + '*';
+
+    var payload = {
+      "channel": slackChannel,
+      "username": "incoming-webhook",
+      "text": slackMessage,
+      "mrkdwn": true,
+    };
+
+    var options = {
+      method: 'POST',
+      url: params.SLACK_DEBUG_POST_URL,
+      headers: { 'Content-type': 'application/json' },
+      body: JSON.stringify(payload)
+    };
+
+    request(options, function (error, response, body) {
+      if (error) {
+        console.log("ERROR: fail to post");
+      } else {
+        console.log ("SUCCESS: posted to slack");
+      }
+    });
+  }
 }
 
 exports.main = main
