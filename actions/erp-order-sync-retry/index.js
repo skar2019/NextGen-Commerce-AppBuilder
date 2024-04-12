@@ -74,17 +74,20 @@ function sendCommerceOrderToERP(commerceOrder, params) {
 
   request(options, function (error, response) {
     var erpResponse = response.body;
+
     if (error) {
       sendNotificationToSlackGeneric('Not able to send order to ERP', params);
       console.log("ERROR: Fail to post to ERP");
       console.log(erpResponse);
     } else {
+      var erpResponseJson = JSON.parse(erpResponse);
+
       sendNotificationToSlackGeneric('Order Data send to ERP', params);
       console.log ("SUCCESS: Posted to ERP");
-      console.log(erpResponse);
+      console.log(erpResponseJson);
 
-      updateCommerceOrderSyncStatus(erpResponse,params);
-      sendNotificationToSlack(erpResponse,params);
+      updateCommerceOrderSyncStatus(erpResponseJson,params);
+      sendNotificationToSlack(erpResponseJson,params);
     }
   });
 }
@@ -92,19 +95,17 @@ function sendCommerceOrderToERP(commerceOrder, params) {
 /**
  * Update ERP Order Sync Status to Commerce
  */
-function updateCommerceOrderSyncStatus(erpResponse, params) {
-
-  var erpResponseJson = JSON.parse(erpResponse);
+function updateCommerceOrderSyncStatus(erpResponseJson, params) {
 
   var request = require('request');
   var options = {
     'method': 'POST',
-    'url': params.COMMERCE_API_ENDPOINT + '/rest/V1/orders',
+    'url': params.COMMERCE_API_ENDPOINT + '/rest/async/bulk/V1/orders',
     'headers': {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer ' + params.COMMERCE_BEARAR_TOKEN
     },
-    body: JSON.stringify({
+    body: JSON.stringify([{
       "entity": {
         "entity_id": erpResponseJson.commerce_order_id,
         "extension_attributes": {
@@ -112,7 +113,7 @@ function updateCommerceOrderSyncStatus(erpResponse, params) {
           "erp_order_id" : erpResponseJson.erp_order_id
         }
       }
-    })
+    }])
 
   };
   request(options, function (error, response) {
@@ -130,10 +131,17 @@ function updateCommerceOrderSyncStatus(erpResponse, params) {
 /**
  * Update to Slack Channel
  */
-function sendNotificationToSlack(erpResponse, params) {
+function sendNotificationToSlack(erpResponseJson, params) {
 
   var slackChannel = params.SLACK_CHANNEL_NAME;
-  var slackMessage = "*ERP Order Synchronization Details !* \n" + '`' + JSON.stringify(erpResponse) + '`';
+  var erpSyncMessage= 'Order Sync with ERP is Successful';
+
+  if (erpResponseJson.sync_status == '0') {
+    erpSyncMessage = 'Order Sync with ERP is Failed';
+  }
+
+  var slackMessage = "*ERP Order Synchronization Details !* \n" + erpSyncMessage + '\n' +
+    '`' + JSON.stringify(erpResponseJson) + '`';
 
   var payload = {
     "channel": slackChannel,
