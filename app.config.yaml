@@ -12,6 +12,15 @@ application:
             runtime: nodejs:18
             inputs:
               LOG_LEVEL: debug
+              apiKey: $SERVICE_API_KEY
+              COMMERCE_API_ENDPOINT: $COMMERCE_API_ENDPOINT
+              COMMERCE_BEARAR_TOKEN: $COMMERCE_BEARAR_TOKEN
+              ERP_API_ENDPOINT: $ERP_API_ENDPOINT
+              SLACK_CHANNEL_NAME: $SLACK_CHANNEL_NAME
+              SLACK_DEBUG_CHANNEL_NAME: $SLACK_DEBUG_CHANNEL_NAME
+              SLACK_POST_URL: $SLACK_POST_URL
+              SLACK_DEBUG_POST_URL: $SLACK_DEBUG_POST_URL
+              ENLABLE_DEBUG: $ENLABLE_DEBUG
             annotations:
               require-adobe-auth: false
               final: true
