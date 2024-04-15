@@ -14,8 +14,6 @@ async function main (params) {
   } catch (error) {
     // log any server errors
     logger.error(error)
-    // return with 500
-    return errorResponse(500, 'server error', logger)
   }
 }
 
@@ -23,7 +21,7 @@ async function main (params) {
  * Synchronization Order to ERP
  */
 function syncCommerceOrdersToERP(params) {
-  var options = {
+  let options = {
     'method': 'GET',
     'url': params.COMMERCE_API_ENDPOINT +'/rest/all/V1/orders?'+
       'searchCriteria[filter_groups][0][filters][0][field]=erp_sync_status&'+
@@ -39,8 +37,8 @@ function syncCommerceOrdersToERP(params) {
       sendNotificationToSlackGeneric('Not able to fetch order data from commerce', params);
       throw new Error(error);
     } else {
-      var commerceResponse = JSON.parse(response.body);
-      var commerceOrders = commerceResponse.items;
+      let commerceResponse = JSON.parse(response.body);
+      let commerceOrders = commerceResponse.items;
       sendNotificationToSlackGeneric('Order Data fetch from Commerce', params);
       /**
        * Iterate Each Commerce Order,Send Each Order to ERP
@@ -64,8 +62,8 @@ function checkERPSyncStatus(commerceOrder, params){
  * @param commerceOrder
  */
 function sendCommerceOrderToERP(commerceOrder, params) {
-  var commerOrderData = JSON.stringify(commerceOrder);
-  var options = {
+  let commerOrderData = JSON.stringify(commerceOrder);
+  let options = {
     method: 'POST',
     url: params.ERP_API_ENDPOINT + '/process-order.php',
     headers: { 'Content-type': 'application/json' },
@@ -97,8 +95,8 @@ function sendCommerceOrderToERP(commerceOrder, params) {
  */
 function updateCommerceOrderSyncStatus(erpResponseJson, params) {
 
-  var request = require('request');
-  var options = {
+  let request = require('request');
+  let options = {
     'method': 'POST',
     'url': params.COMMERCE_API_ENDPOINT + '/rest/async/bulk/V1/orders',
     'headers': {
@@ -123,7 +121,6 @@ function updateCommerceOrderSyncStatus(erpResponseJson, params) {
     } else {
       sendNotificationToSlackGeneric('Able to update ERP sync Status to Commerce', params);
     }
-   //console.log(response.body);
   });
 
 }
@@ -133,24 +130,24 @@ function updateCommerceOrderSyncStatus(erpResponseJson, params) {
  */
 function sendNotificationToSlack(erpResponseJson, params) {
 
-  var slackChannel = params.SLACK_CHANNEL_NAME;
-  var erpSyncMessage= 'Order Sync with ERP is Successful';
+  let slackChannel = params.SLACK_CHANNEL_NAME;
+  let erpSyncMessage= 'Order Sync with ERP is Successful';
 
   if (erpResponseJson.sync_status == '0') {
     erpSyncMessage = 'Order Sync with ERP is Failed';
   }
 
-  var slackMessage = "*ERP Order Synchronization Details !* \n" + erpSyncMessage + '\n' +
+  let slackMessage = "*ERP Order Synchronization Details !* \n" + erpSyncMessage + '\n' +
     '`' + JSON.stringify(erpResponseJson) + '`';
 
-  var payload = {
+  let payload = {
     "channel": slackChannel,
     "username": "incoming-webhook",
     "text": slackMessage,
     "mrkdwn": true,
   };
 
-  var options = {
+  let options = {
     method: 'POST',
     url: params.SLACK_POST_URL,
     headers: { 'Content-type': 'application/json' },
@@ -166,20 +163,25 @@ function sendNotificationToSlack(erpResponseJson, params) {
   });
 }
 
+/**
+ *
+ * @param message
+ * @param params
+ */
 function sendNotificationToSlackGeneric(message, params) {
 
   if (params.ENLABLE_DEBUG == 1) {
-    var slackChannel = params.SLACK_DEBUG_CHANNEL_NAME;
-    var slackMessage = '*' + message + '*';
+    let slackChannel = params.SLACK_DEBUG_CHANNEL_NAME;
+    let slackMessage = '*' + message + '*';
 
-    var payload = {
+    let payload = {
       "channel": slackChannel,
       "username": "incoming-webhook",
       "text": slackMessage,
       "mrkdwn": true,
     };
 
-    var options = {
+    let options = {
       method: 'POST',
       url: params.SLACK_DEBUG_POST_URL,
       headers: { 'Content-type': 'application/json' },

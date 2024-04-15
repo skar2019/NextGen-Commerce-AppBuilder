@@ -8,7 +8,7 @@ application:
         actions:
           erp-order-sync:
             function: actions/erp-order-sync/index.js
-            web: 'yes'
+            web: 'no'
             runtime: nodejs:18
             inputs:
               LOG_LEVEL: debug
@@ -26,7 +26,7 @@ application:
               final: true
           erp-order-sync-retry:
             function: actions/erp-order-sync-retry/index.js
-            web: 'yes'
+            web: 'no'
             runtime: nodejs:18
             inputs:
               LOG_LEVEL: debug
@@ -51,3 +51,4 @@ application:
           everyMinRule:
             trigger: everyMin
             action: erp-order-sync-retry
+
