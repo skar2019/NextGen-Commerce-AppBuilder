@@ -10,6 +10,9 @@ async function main (params) {
   // create a Logger
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
 
+  logger.info(params);
+  console.log(params);
+
   try {
     syncCommerceOrderToERP(params);
   } catch (error) {
@@ -46,8 +49,8 @@ function checkERPSyncStatus(commerceOrder, params){
 function sendCommerceOrderToERP(commerceOrder, params) {
   let commerceOrderData = JSON.stringify(commerceOrder);
   let options = {
-    method: 'POST',
-    url: params.ERP_API_ENDPOINT + '/process-order.php',
+    method: 'GET',
+    url: params.ERP_API_ENDPOINT ,
     headers: { 'Content-type': 'application/json' },
     body: commerceOrderData
   };
@@ -89,6 +92,8 @@ function updateCommerceOrderSyncStatus(erpResponseJson, params) {
     body: JSON.stringify([{
       "entity": {
         "entity_id": erpResponseJson.commerce_order_id,
+        "state": "processing",
+        "status": "processing",
         "extension_attributes": {
           "erp_sync_status": erpResponseJson.sync_status,
           "erp_order_id" : erpResponseJson.erp_order_id
@@ -117,11 +122,11 @@ function sendNotificationToSlack(erpResponseJson, params) {
   let slackChannel = params.SLACK_CHANNEL_NAME;
   let erpSyncMessage= 'Order Sync with ERP is Successful';
 
-  if (erpResponseJson.sync_status === '0') {
+  if (erpResponseJson.sync_status === '3') {
     erpSyncMessage = 'Order Sync with ERP is Failed';
   }
 
-  let slackMessage = "*ERP Order Synchronization Details. Processed By Commerce Data Publish !* \n" + erpSyncMessage + '\n' +
+  let slackMessage = "*ERP Order Synchronization Details. Processed By AIO Data Publish !* \n" + erpSyncMessage + '\n' +
     '`' + JSON.stringify(erpResponseJson) + '`';
 
   let payload = {
