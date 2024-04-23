@@ -5,7 +5,13 @@ const fetch = require('node-fetch')
 const { Core } = require('@adobe/aio-sdk')
 var request = require('request');
 
-// main function that will be executed by Adobe I/O Runtime
+
+/**
+ * Main function that will be executed by Adobe I/O Runtime
+ *
+ * @param params
+ * @returns {Promise<void>}
+ */
 async function main (params) {
   // create a Logger
   const logger = Core.Logger('main', { level: params.LOG_LEVEL || 'info' })
@@ -19,6 +25,8 @@ async function main (params) {
 
 /**
  * Synchronization Order to ERP
+ *
+ * @param params
  */
 function syncCommerceOrdersToERP(params) {
   let options = {
@@ -34,18 +42,18 @@ function syncCommerceOrdersToERP(params) {
 
   request(options, function (error, response) {
     if (error)  {
-      sendNotificationToSlackGeneric('Not able to fetch order data from commerce', params);
+      sendNotificationLogToSlack('Not able to fetch order data from commerce : ' + error, params);
       throw new Error(error);
     } else {
       let commerceResponse = JSON.parse(response.body);
       let commerceOrders = commerceResponse.items;
-      sendNotificationToSlackGeneric('Order Data fetch from Commerce', params);
+      sendNotificationLogToSlack('Order Data fetch from Commerce : ', params);
       /**
        * Iterate Each Commerce Order,Send Each Order to ERP
        */
       commerceOrders.forEach(commerceOrder => {
         if (checkERPSyncStatus(commerceOrder, params)) {
-          sendNotificationToSlackGeneric('Iterate Order Data and send to ERP', params);
+          sendNotificationLogToSlack('Iterate Order Data and send to ERP : ', commerceOrder);
           sendCommerceOrderToERP(commerceOrder, params)
         }
       });
@@ -53,6 +61,13 @@ function syncCommerceOrdersToERP(params) {
   });
 }
 
+/**
+ *
+ *
+ * @param commerceOrder
+ * @param params
+ * @returns {boolean}
+ */
 function checkERPSyncStatus(commerceOrder, params){
   return true;
 }
@@ -74,17 +89,17 @@ function sendCommerceOrderToERP(commerceOrder, params) {
     var erpResponse = response.body;
 
     if (error) {
-      sendNotificationToSlackGeneric('Not able to send order to ERP', params);
+      sendNotificationLogToSlack('Not able to send order to ERP : ' + error, params);
       console.log("ERROR: Fail to post to ERP");
       console.log(erpResponse);
     } else {
       var erpResponseJson = JSON.parse(erpResponse);
 
-      sendNotificationToSlackGeneric('Order Data send to ERP', params);
+      sendNotificationLogToSlack('Order Data send to ERP', params);
       console.log ("SUCCESS: Posted to ERP");
       console.log(erpResponseJson);
 
-      updateCommerceOrderSyncStatus(erpResponseJson,params);
+      updateOrderSyncStatusToCommerce(erpResponseJson,params);
       sendNotificationToSlack(erpResponseJson,params);
     }
   });
@@ -92,8 +107,11 @@ function sendCommerceOrderToERP(commerceOrder, params) {
 
 /**
  * Update ERP Order Sync Status to Commerce
+ *
+ * @param erpResponseJson
+ * @param params
  */
-function updateCommerceOrderSyncStatus(erpResponseJson, params) {
+function updateOrderSyncStatusToCommerce(erpResponseJson, params) {
 
   let request = require('request');
   let options = {
@@ -118,10 +136,10 @@ function updateCommerceOrderSyncStatus(erpResponseJson, params) {
   };
   request(options, function (error, response) {
     if (error) {
-      sendNotificationToSlackGeneric('Not able to update ERP sync Status data to Commerce', params);
+      sendNotificationLogToSlack('Not able to update ERP sync Status data to Commerce' + error, params);
       throw new Error(error);
     } else {
-      sendNotificationToSlackGeneric('Able to update ERP sync Status to Commerce', params);
+      sendNotificationLogToSlack('Able to update ERP sync Status to Commerce', params);
     }
   });
 
@@ -129,6 +147,9 @@ function updateCommerceOrderSyncStatus(erpResponseJson, params) {
 
 /**
  * Update to Slack Channel
+ *
+ * @param erpResponseJson
+ * @param params
  */
 function sendNotificationToSlack(erpResponseJson, params) {
 
@@ -158,9 +179,9 @@ function sendNotificationToSlack(erpResponseJson, params) {
 
   request(options, function (error, response, body) {
     if (error) {
-      console.log("ERROR: fail to post");
+      console.log("ERROR: Fail to post to Slack.");
     } else {
-      console.log ("SUCCESS: posted to slack");
+      console.log ("SUCCESS: Posted to Slack.");
     }
   });
 }
@@ -170,11 +191,11 @@ function sendNotificationToSlack(erpResponseJson, params) {
  * @param message
  * @param params
  */
-function sendNotificationToSlackGeneric(message, params) {
+function sendNotificationLogToSlack(message, params) {
 
   if (params.ENLABLE_DEBUG == 1) {
     let slackChannel = params.SLACK_DEBUG_CHANNEL_NAME;
-    let slackMessage = '*' + message + '*';
+    let slackMessage = '*' + message + '*' + JSON.stringify(params);
 
     let payload = {
       "channel": slackChannel,
@@ -192,9 +213,9 @@ function sendNotificationToSlackGeneric(message, params) {
 
     request(options, function (error, response, body) {
       if (error) {
-        console.log("ERROR: fail to post");
+        console.log("ERROR: Fail to post to slack.");
       } else {
-        console.log ("SUCCESS: posted to slack");
+        console.log ("SUCCESS: Posted to slack.");
       }
     });
   }
