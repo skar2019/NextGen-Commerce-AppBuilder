@@ -7,31 +7,31 @@
   "bounce_rate_history": [
     {
       "datetime": "2024-04-25",
-      "value": "27%"
+      "value": "27"
     },
     {
       "datetime": "2024-04-26",
-      "value": "29%"
+      "value": "29"
     },
     {
       "datetime": "2024-04-27",
-      "value": "35%"
+      "value": "35"
     },
     {
       "datetime": "2024-04-28",
-      "value": "37%"
+      "value": "37"
     },
     {
       "datetime": "2024-04-29",
-      "value": "45%"
+      "value": "45"
     },
     {
       "datetime": "2024-04-30",
-      "value": "24%"
+      "value": "24"
     },
     {
       "datetime": "2024-04-31",
-      "value": "35%"
+      "value": "35"
     }
   ]
 }
